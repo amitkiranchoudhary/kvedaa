@@ -1,0 +1,23 @@
+=== STARTING ORDER SYSTEM TESTS ===
+
+PASS: Login successful, token received.
+PASS: Create Order successful. Order ID: 697a12593937c32c0c84ef41
+      Response: {
+  "id": "697a12593937c32c0c84ef41",
+  "user_id": "697a11f93937c32c0c84ef3e",
+  "items": [
+    "Gum Gum Fruit",
+    "Straw Hat"
+  ],
+  "total_amount": 5000000.0,
+  "status": "PENDING",
+  "created_at": "2026-01-28T13:42:49.761000",
+  "updated_at": "2026-01-28T13:42:49.761000",
+  "user_details": null
+}
+PASS: Get My Orders successful. Found 2 orders.
+PASS: List All Orders successful. First order user details: {'first_name': 'Test', 'last_name': 'Captain', 'email': 'testcaptain3@pirate.com'}
+PASS: Update Order Status to SHIPPED successful.
+PASS: Delete Order successful.
+
+=== ALL TESTS COMPLETED ===

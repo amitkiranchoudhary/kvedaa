@@ -1,0 +1,50 @@
+﻿
+=== 1. HEALTH CHECK ===
+  [PASS] | GET / - status=200
+
+=== 2. SIGNUP ===
+  [PASS] | POST /v1/users (signup) - user_id=698df1a88f225810a20755da
+
+=== 3. LOGIN ===
+  [PASS] | POST /v1/login - token=eyJhbGciOiJIUzI1NiIsInR5cCI6Ik...
+
+=== 4. BUILDINGS ===
+  [PASS] | POST /api/buildings/ (create) - id=698df1a88f225810a20755db
+  [PASS] | GET /api/buildings/ (list) - count=1
+  [PASS] | GET /api/buildings/:id - name=Test Office Building
+  [PASS] | PUT /api/buildings/:id (update) - floors=10
+
+=== 5. DEVICES ===
+  [PASS] | POST /api/devices/ (register) - id=698df1a88f225810a20755dc, key=kv_X6r86zwhY3clL3bbjfPymk...
+  [PASS] | GET /api/devices/ (list) - count=1
+  [PASS] | GET /api/devices/:id
+  [PASS] | GET /api/devices/:id/status - status=OFFLINE
+  [PASS] | GET /api/devices/building/:id - count=1
+
+=== 6. ALERT RULES ===
+  [PASS] | POST /api/alerts/rules (create) - id=698df1a88f225810a20755dd
+  [PASS] | GET /api/alerts/rules (list) - count=1
+
+=== 7. TELEMETRY ===
+  [PASS] | POST /api/telemetry/ (push energy) - body={"message":"Telemetry data ingested","telemetry_id":"698df1a88f225810a20755de"}
+  [PASS] | POST /api/telemetry/ (push comfort, should trigger alert) - body={"message":"Telemetry data ingested","telemetry_id":"698df1a88f225810a20755df"}
+  [PASS] | GET /api/telemetry/:device_id - count=2
+  [PASS] | GET /api/telemetry/:device_id/latest - body={"device_id":"698df1a88f225810a20755dc","timestamp":"2026-02-12T15:28:40.347000","metrics":null,"readings":{"temperature_c":35.5,"co2_ppm":800.0,"humi
+
+=== 8. TRIGGERED ALERTS ===
+  [PASS] | GET /api/alerts/ (triggered) - count=5
+  [PASS] | POST /api/alerts/:id/acknowledge - body={"rule_id":"698df1a88f225810a20755dd","device_id":"698df1a88f225810a20755dc","triggered_at":"2026-02-12T15:28:40.349000","metric":"temperature_c","val
+
+=== 9. ANALYTICS ===
+  [PASS] | GET /api/analytics/dashboard - body={"total_buildings":1,"total_devices":1,"devices_online":1,"devices_offline":0,"total_telemetry_records":10,"unacknowledged_alerts":0,"recent_alerts":[]}
+  [PASS] | GET /api/analytics/energy - data_points=2
+  [PASS] | GET /api/analytics/comfort - data_points=2
+
+=== 10. CLEANUP ===
+  [PASS] | DELETE /api/alerts/rules/:id
+  [PASS] | DELETE /api/devices/:id
+  [PASS] | DELETE /api/buildings/:id
+
+============================================================
+TOTAL: 26 tests | [PASS] 26 passed | [FAIL] 0 failed
+============================================================
