@@ -1,157 +1,170 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { analyticsAPI } from '../services/api';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts';
+import { BarChart2, Calendar, TreePine, Leaf, Droplets, Thermometer, Wind, Zap } from 'lucide-react';
+import { BarChart, Bar, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+
+const CustomTooltip = ({ active, payload, label }) => {
+    if (active && payload && payload.length) {
+        return (
+            <div className="border border-forest-border/30 p-3.5 rounded-xl"
+                style={{
+                    background: 'linear-gradient(135deg, rgba(15, 33, 15, 0.97), rgba(10, 23, 10, 0.99))',
+                    boxShadow: '0 8px 30px rgba(0,0,0,0.5)',
+                    backdropFilter: 'blur(12px)',
+                }}>
+                <p className="text-forest-muted/70 text-xs mb-1 uppercase tracking-wider font-medium">{label}</p>
+                {payload.map((p, i) => (
+                    <p key={i} className="text-forest-cream text-sm font-bold flex items-center gap-1">
+                        <span className="w-2 h-2 rounded-full" style={{ background: p.color }} />
+                        {p.value} <span className="text-xs text-forest-muted/50 font-normal">{p.unit || ''}</span>
+                    </p>
+                ))}
+            </div>
+        );
+    }
+    return null;
+};
 
 export default function Analytics() {
     const [tab, setTab] = useState('energy');
-    const [startDate, setStartDate] = useState('2026-01-01');
-    const [endDate, setEndDate] = useState('2026-12-31');
-    const [energyData, setEnergyData] = useState(null);
-    const [comfortData, setComfortData] = useState(null);
-    const [loading, setLoading] = useState(false);
-    const [error, setError] = useState('');
+    const [dateRange, setDateRange] = useState({
+        start: new Date(Date.now() - 7 * 86400000).toISOString().split('T')[0],
+        end: new Date().toISOString().split('T')[0],
+    });
+    const [energyData, setEnergyData] = useState([]);
+    const [comfortData, setComfortData] = useState([]);
+    const [loading, setLoading] = useState(true);
 
-    const fetchEnergy = async () => {
+    useEffect(() => { fetchData(); }, [dateRange]);
+
+    const fetchData = async () => {
+        setLoading(true);
         try {
-            setLoading(true); setError('');
-            const res = await analyticsAPI.getEnergy(startDate, endDate);
-            setEnergyData(res.data);
-        } catch (err) {
-            setError(err.response?.data?.detail || 'Failed to load energy data');
-        } finally {
-            setLoading(false);
-        }
+            const [eRes, cRes] = await Promise.allSettled([
+                analyticsAPI.getEnergy(dateRange.start, dateRange.end),
+                analyticsAPI.getComfort(dateRange.start, dateRange.end),
+            ]);
+            if (eRes.status === 'fulfilled') {
+                const data = eRes.value.data;
+                setEnergyData(Array.isArray(data) ? data : (data?.energy || []));
+            }
+            if (cRes.status === 'fulfilled') {
+                const data = cRes.value.data;
+                setComfortData(Array.isArray(data) ? data : (data?.comfort || []));
+            }
+        } catch { } finally { setLoading(false); }
     };
 
-    const fetchComfort = async () => {
-        try {
-            setLoading(true); setError('');
-            const res = await analyticsAPI.getComfort(startDate, endDate);
-            setComfortData(res.data);
-        } catch (err) {
-            setError(err.response?.data?.detail || 'Failed to load comfort data');
-        } finally {
-            setLoading(false);
-        }
-    };
+    const tabs = [
+        { key: 'energy', label: 'Energy', icon: Zap, color: 'text-forest-gold', activeColor: 'text-forest-gold', borderColor: 'border-forest-gold' },
+        { key: 'temperature', label: 'Temperature', icon: Thermometer, color: 'text-rose-400', activeColor: 'text-rose-400', borderColor: 'border-rose-400' },
+        { key: 'humidity', label: 'Humidity', icon: Droplets, color: 'text-blue-400', activeColor: 'text-blue-400', borderColor: 'border-blue-400' },
+        { key: 'co2', label: 'CO₂', icon: Wind, color: 'text-forest-spring', activeColor: 'text-forest-spring', borderColor: 'border-forest-spring' },
+    ];
 
-    const handleFetch = () => {
-        if (tab === 'energy') fetchEnergy();
-        else fetchComfort();
-    };
+    const activeTab = tabs.find(t => t.key === tab);
+
+    if (loading && !energyData.length && !comfortData.length) return (
+        <div className="flex items-center justify-center h-[50vh]">
+            <div className="relative">
+                <div className="animate-spin rounded-full h-14 w-14 border-t-2 border-b-2 border-forest-spring"></div>
+                <TreePine className="w-6 h-6 text-forest-spring absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
+            </div>
+        </div>
+    );
 
     return (
-        <div className="p-6">
-            <h1 className="text-2xl font-bold text-scada-text mb-6">Analytics</h1>
-
-            {/* Tab + Date Range */}
-            <div className="bg-scada-panel border border-scada-border rounded-lg p-4 mb-6">
-                <div className="flex flex-wrap gap-4 items-end">
-                    <div className="flex gap-2">
-                        <button onClick={() => setTab('energy')}
-                            className={`px-3 py-1 rounded text-sm ${tab === 'energy' ? 'bg-scada-accent text-white' : 'bg-scada-card text-scada-muted border border-scada-border'}`}>
-                            Energy
-                        </button>
-                        <button onClick={() => setTab('comfort')}
-                            className={`px-3 py-1 rounded text-sm ${tab === 'comfort' ? 'bg-scada-accent text-white' : 'bg-scada-card text-scada-muted border border-scada-border'}`}>
-                            Comfort
-                        </button>
-                    </div>
-                    <div>
-                        <label className="text-xs text-scada-muted block mb-1">Start</label>
-                        <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)}
-                            className="px-3 py-1 bg-scada-dark border border-scada-border rounded text-scada-text text-sm" />
-                    </div>
-                    <div>
-                        <label className="text-xs text-scada-muted block mb-1">End</label>
-                        <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)}
-                            className="px-3 py-1 bg-scada-dark border border-scada-border rounded text-scada-text text-sm" />
-                    </div>
-                    <button onClick={handleFetch}
-                        className="px-4 py-1.5 bg-scada-accent hover:bg-blue-600 text-white rounded text-sm font-medium">
-                        Load Data
-                    </button>
+        <div className="space-y-8">
+            {/* Header */}
+            <div className="flex items-center justify-between flex-wrap gap-4">
+                <div>
+                    <h1 className="text-3xl font-bold text-forest-cream font-display flex items-center gap-3">
+                        <BarChart2 className="w-7 h-7 text-forest-spring" />
+                        Analytics
+                    </h1>
+                    <p className="text-sm text-forest-muted mt-1.5">Energy consumption and environmental data trends</p>
+                </div>
+                <div className="flex items-center gap-2">
+                    <Calendar className="w-4 h-4 text-forest-muted" />
+                    <input type="date" value={dateRange.start} onChange={(e) => setDateRange({ ...dateRange, start: e.target.value })}
+                        className="input-scada text-xs py-1.5" />
+                    <span className="text-forest-muted/30">→</span>
+                    <input type="date" value={dateRange.end} onChange={(e) => setDateRange({ ...dateRange, end: e.target.value })}
+                        className="input-scada text-xs py-1.5" />
                 </div>
             </div>
 
-            {error && <div className="bg-red-500/10 border border-red-500/30 text-red-400 px-4 py-2 rounded mb-4 text-sm">{error}</div>}
-            {loading && <p className="text-scada-muted">Loading analytics...</p>}
+            {/* Tabs */}
+            <div className="flex items-center gap-6 border-b border-forest-border/20 pb-1">
+                {tabs.map(t => {
+                    const Icon = t.icon;
+                    return (
+                        <button key={t.key} onClick={() => setTab(t.key)}
+                            className={`flex items-center gap-2 pb-3 px-1 text-sm font-medium border-b-2 transition-all ${tab === t.key
+                                ? `${t.activeColor} ${t.borderColor}`
+                                : 'text-forest-muted border-transparent hover:text-forest-cream'}`}>
+                            <Icon className="w-4 h-4" /> {t.label}
+                        </button>
+                    );
+                })}
+            </div>
 
-            {/* Energy Charts */}
-            {tab === 'energy' && energyData && (
-                <div className="space-y-6">
-                    <div className="bg-scada-panel border border-scada-border rounded-lg p-4">
-                        <h2 className="text-lg font-medium text-scada-text mb-4">Daily Energy Consumption (kWh)</h2>
-                        {energyData.data.length === 0 ? (
-                            <p className="text-scada-muted">No energy data for this period. Push some telemetry data first.</p>
-                        ) : (
-                            <ResponsiveContainer width="100%" height={300}>
-                                <BarChart data={energyData.data}>
-                                    <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
-                                    <XAxis dataKey="date" stroke="#94a3b8" fontSize={12} />
-                                    <YAxis stroke="#94a3b8" fontSize={12} />
-                                    <Tooltip contentStyle={{ backgroundColor: '#1e293b', border: '1px solid #475569', color: '#f1f5f9' }} />
-                                    <Bar dataKey="total_kwh" fill="#3b82f6" radius={[4, 4, 0, 0]} />
-                                </BarChart>
-                            </ResponsiveContainer>
-                        )}
-                    </div>
-
-                    {energyData.data.length > 0 && (
-                        <div className="bg-scada-panel border border-scada-border rounded-lg p-4">
-                            <h2 className="text-lg font-medium text-scada-text mb-4">Average Voltage & Amperage</h2>
-                            <ResponsiveContainer width="100%" height={250}>
-                                <LineChart data={energyData.data}>
-                                    <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
-                                    <XAxis dataKey="date" stroke="#94a3b8" fontSize={12} />
-                                    <YAxis stroke="#94a3b8" fontSize={12} />
-                                    <Tooltip contentStyle={{ backgroundColor: '#1e293b', border: '1px solid #475569', color: '#f1f5f9' }} />
-                                    <Line type="monotone" dataKey="avg_voltage" stroke="#eab308" strokeWidth={2} dot={false} />
-                                    <Line type="monotone" dataKey="avg_amperage" stroke="#22c55e" strokeWidth={2} dot={false} />
-                                </LineChart>
-                            </ResponsiveContainer>
-                        </div>
-                    )}
+            {/* Chart */}
+            <div className="glass-panel rounded-2xl overflow-hidden">
+                <div className="p-6 pb-2 flex items-center justify-between">
+                    <h3 className="text-sm font-bold text-forest-muted uppercase tracking-wider flex items-center gap-2">
+                        {activeTab && <activeTab.icon className={`w-4 h-4 ${activeTab.color}`} />}
+                        {tab === 'energy' ? 'Energy Consumption' : `${activeTab?.label || ''} Trends`}
+                    </h3>
+                    {loading && <div className="w-4 h-4 border-2 border-forest-spring/30 border-t-forest-spring rounded-full animate-spin" />}
                 </div>
-            )}
 
-            {/* Comfort Charts */}
-            {tab === 'comfort' && comfortData && (
-                <div className="space-y-6">
-                    <div className="bg-scada-panel border border-scada-border rounded-lg p-4">
-                        <h2 className="text-lg font-medium text-scada-text mb-4">Temperature & Humidity</h2>
-                        {comfortData.data.length === 0 ? (
-                            <p className="text-scada-muted">No comfort data for this period.</p>
+                <div className="h-[420px] w-full px-4 pb-6">
+                    <ResponsiveContainer width="100%" height="100%">
+                        {tab === 'energy' ? (
+                            <BarChart data={energyData} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
+                                <defs>
+                                    <linearGradient id="energyGrad" x1="0" y1="0" x2="0" y2="1">
+                                        <stop offset="5%" stopColor="#e6b422" stopOpacity={0.8} />
+                                        <stop offset="95%" stopColor="#e6b422" stopOpacity={0.15} />
+                                    </linearGradient>
+                                </defs>
+                                <CartesianGrid strokeDasharray="3 3" stroke="#254025" vertical={false} opacity={0.3} />
+                                <XAxis dataKey="date" stroke="#7aaf7a" fontSize={10} tickLine={false} axisLine={false} />
+                                <YAxis stroke="#7aaf7a" fontSize={10} tickLine={false} axisLine={false} />
+                                <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(74, 222, 128, 0.04)' }} />
+                                <Bar dataKey="value" fill="url(#energyGrad)" radius={[6, 6, 0, 0]} unit=" kWh" />
+                            </BarChart>
                         ) : (
-                            <ResponsiveContainer width="100%" height={300}>
-                                <LineChart data={comfortData.data}>
-                                    <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
-                                    <XAxis dataKey="hour" stroke="#94a3b8" fontSize={10} />
-                                    <YAxis stroke="#94a3b8" fontSize={12} />
-                                    <Tooltip contentStyle={{ backgroundColor: '#1e293b', border: '1px solid #475569', color: '#f1f5f9' }} />
-                                    <Line type="monotone" dataKey="avg_temperature" stroke="#ef4444" strokeWidth={2} name="Temp (°C)" />
-                                    <Line type="monotone" dataKey="avg_humidity" stroke="#3b82f6" strokeWidth={2} name="Humidity (%)" />
-                                </LineChart>
-                            </ResponsiveContainer>
+                            <AreaChart data={comfortData} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
+                                <defs>
+                                    <linearGradient id="comfortGrad" x1="0" y1="0" x2="0" y2="1">
+                                        <stop offset="5%" stopColor={tab === 'temperature' ? '#ef4444' : tab === 'humidity' ? '#60a5fa' : '#52b788'} stopOpacity={0.3} />
+                                        <stop offset="95%" stopColor={tab === 'temperature' ? '#ef4444' : tab === 'humidity' ? '#60a5fa' : '#52b788'} stopOpacity={0} />
+                                    </linearGradient>
+                                </defs>
+                                <CartesianGrid strokeDasharray="3 3" stroke="#254025" vertical={false} opacity={0.3} />
+                                <XAxis dataKey="date" stroke="#7aaf7a" fontSize={10} tickLine={false} axisLine={false} />
+                                <YAxis stroke="#7aaf7a" fontSize={10} tickLine={false} axisLine={false} />
+                                <Tooltip content={<CustomTooltip />} cursor={{ stroke: '#254025', strokeDasharray: '4 4' }} />
+                                <Area type="monotone" dataKey="value"
+                                    stroke={tab === 'temperature' ? '#ef4444' : tab === 'humidity' ? '#60a5fa' : '#52b788'}
+                                    strokeWidth={2.5}
+                                    fill="url(#comfortGrad)"
+                                    activeDot={{ r: 5, strokeWidth: 0, fill: '#faf5eb' }} />
+                            </AreaChart>
                         )}
-                    </div>
-
-                    {comfortData.data.length > 0 && (
-                        <div className="bg-scada-panel border border-scada-border rounded-lg p-4">
-                            <h2 className="text-lg font-medium text-scada-text mb-4">CO₂ Levels (ppm)</h2>
-                            <ResponsiveContainer width="100%" height={250}>
-                                <BarChart data={comfortData.data}>
-                                    <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
-                                    <XAxis dataKey="hour" stroke="#94a3b8" fontSize={10} />
-                                    <YAxis stroke="#94a3b8" fontSize={12} />
-                                    <Tooltip contentStyle={{ backgroundColor: '#1e293b', border: '1px solid #475569', color: '#f1f5f9' }} />
-                                    <Bar dataKey="avg_co2" fill="#eab308" radius={[4, 4, 0, 0]} name="CO₂ (ppm)" />
-                                </BarChart>
-                            </ResponsiveContainer>
-                        </div>
-                    )}
+                    </ResponsiveContainer>
                 </div>
-            )}
+
+                {/* Empty state */}
+                {((tab === 'energy' && energyData.length === 0) || (tab !== 'energy' && comfortData.length === 0)) && !loading && (
+                    <div className="text-center py-12 -mt-[350px] relative z-10">
+                        <span className="text-5xl block mb-3">📊</span>
+                        <p className="text-forest-muted">No data available for the selected period.</p>
+                    </div>
+                )}
+            </div>
         </div>
     );
 }

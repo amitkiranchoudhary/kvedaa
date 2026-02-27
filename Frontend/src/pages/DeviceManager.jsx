@@ -1,210 +1,179 @@
 import { useState, useEffect } from 'react';
-import api from '../services/api';
+import { deviceAPI, buildingAPI } from '../services/api';
 import DeviceCard from '../components/DeviceCard';
-import { Plus, Search, Filter, X } from 'lucide-react';
+import { Plus, Search, Radio, X, Sliders, TreePine, Leaf } from 'lucide-react';
 
-const DeviceManager = () => {
+export default function DeviceManager() {
     const [devices, setDevices] = useState([]);
     const [buildings, setBuildings] = useState([]);
     const [loading, setLoading] = useState(true);
     const [showForm, setShowForm] = useState(false);
+    const [search, setSearch] = useState('');
+    const [filterType, setFilterType] = useState('ALL');
+    const [error, setError] = useState('');
+    const [form, setForm] = useState({ device_id: '', name: '', type: 'sensor', building_id: '' });
 
-    // Form State
-    const [formData, setFormData] = useState({
-        device_id: '',
-        name: '',
-        type: 'ENERGY_METER',
-        building_id: '',
-        location: ''
-    });
+    useEffect(() => { fetchData(); }, []);
 
     const fetchData = async () => {
         try {
-            const [devicesRes, buildingsRes] = await Promise.all([
-                api.get('/devices/'),
-                api.get('/buildings/')
-            ]);
-            setDevices(devicesRes.data.devices);
-            setBuildings(buildingsRes.data.buildings);
-        } catch (error) {
-            console.error("Failed to fetch data:", error);
-        } finally {
-            setLoading(false);
-        }
+            const [devRes, bRes] = await Promise.allSettled([deviceAPI.getAll(), buildingAPI.getAll()]);
+            if (devRes.status === 'fulfilled') {
+                const devData = devRes.value.data;
+                setDevices(Array.isArray(devData) ? devData : (devData?.devices || []));
+            }
+            if (bRes.status === 'fulfilled') {
+                const bData = bRes.value.data;
+                setBuildings(Array.isArray(bData) ? bData : (bData?.buildings || []));
+            }
+        } catch { } finally { setLoading(false); }
     };
 
-    useEffect(() => {
-        fetchData();
-    }, []);
-
-    const handleRegenerateKey = async (deviceId) => {
-        if (!window.confirm("Are you sure? The old key will stop working immediately.")) return;
-        try {
-            await api.post(`/devices/${deviceId}/regenerate_key`);
-            fetchData(); // Refresh list to get new key
-            alert("API Key regenerated successfully!");
-        } catch (error) {
-            alert("Failed to regenerate key: " + error.message);
-        }
-    };
-
-    const handleSubmit = async (e) => {
+    const handleRegister = async (e) => {
         e.preventDefault();
         try {
-            await api.post('/devices/', formData);
+            await deviceAPI.register({
+                ...form,
+                building_id: form.building_id || undefined
+            });
             setShowForm(false);
-            setFormData({ device_id: '', name: '', type: 'ENERGY_METER', building_id: '', location: '' });
+            setForm({ device_id: '', name: '', type: 'sensor', building_id: '' });
             fetchData();
-        } catch (error) {
-            alert('Failed to register device: ' + error.response?.data?.detail || error.message);
-        }
+        } catch (err) { setError(err.response?.data?.detail || 'Failed'); }
     };
+
+    const handleRegenKey = async (id) => {
+        try { await deviceAPI.regenerateKey(id); fetchData(); }
+        catch (err) { setError(err.response?.data?.detail || 'Failed'); }
+    };
+
+    const filtered = devices.filter(d => {
+        const matchSearch = d.name.toLowerCase().includes(search.toLowerCase()) || d.device_id.toLowerCase().includes(search.toLowerCase());
+        const matchType = filterType === 'ALL' || d.type === filterType;
+        return matchSearch && matchType;
+    });
+
+    const types = ['ALL', ...new Set(devices.map(d => d.type))];
 
     if (loading) return (
         <div className="flex items-center justify-center h-[50vh]">
-            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-scada-accent"></div>
+            <div className="relative">
+                <div className="animate-spin rounded-full h-14 w-14 border-t-2 border-b-2 border-forest-spring"></div>
+                <TreePine className="w-6 h-6 text-forest-spring absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
+            </div>
         </div>
     );
 
     return (
         <div className="space-y-8">
-            <div className="flex justify-between items-center">
+            {/* Header */}
+            <div className="flex items-center justify-between">
                 <div>
-                    <h1 className="text-3xl font-bold text-white tracking-tight">Device Management</h1>
-                    <p className="text-slate-400 mt-1 font-light">Manage hardware provisioning and API keys</p>
+                    <h1 className="text-3xl font-bold text-forest-cream font-display flex items-center gap-3">
+                        <Radio className="w-7 h-7 text-forest-spring" />
+                        Device Manager
+                    </h1>
+                    <p className="text-sm text-forest-muted mt-1.5">Register and monitor IoT devices across the farm</p>
                 </div>
-                <button
-                    onClick={() => setShowForm(!showForm)}
-                    className="flex items-center gap-2 btn-primary hover:shadow-blue-500/40 transition-shadow"
-                >
-                    <Plus className="w-5 h-5" />
-                    <span className="font-semibold tracking-wide">Register Device</span>
+                <button onClick={() => setShowForm(true)} className="btn-primary flex items-center gap-2 text-sm">
+                    <Plus className="w-4 h-4" /> Register Device
                 </button>
             </div>
 
-            {/* Registration Form (Collapsible) */}
-            {showForm && (
-                <div className="glass-panel rounded-2xl p-8 animate-in fade-in slide-in-from-top-4 border-l-4 border-l-scada-accent">
-                    <div className="flex justify-between items-start mb-6">
-                        <h2 className="text-xl font-bold text-white tracking-tight">Register New Hardware</h2>
-                        <button onClick={() => setShowForm(false)} className="text-slate-400 hover:text-white transition-colors">
-                            <X className="w-5 h-5" />
-                        </button>
-                    </div>
-
-                    <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div>
-                            <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Device ID (MAC/Serial)</label>
-                            <input
-                                type="text"
-                                required
-                                placeholder="e.g. AA:BB:CC:DD:EE:FF"
-                                className="input-scada w-full"
-                                value={formData.device_id}
-                                onChange={e => setFormData({ ...formData, device_id: e.target.value })}
-                            />
-                        </div>
-                        <div>
-                            <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Friendly Name</label>
-                            <input
-                                type="text"
-                                required
-                                placeholder="e.g. Main Lobby Sensor"
-                                className="input-scada w-full"
-                                value={formData.name}
-                                onChange={e => setFormData({ ...formData, name: e.target.value })}
-                            />
-                        </div>
-                        <div>
-                            <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Type</label>
-                            <select
-                                className="input-scada w-full appearance-none"
-                                value={formData.type}
-                                onChange={e => setFormData({ ...formData, type: e.target.value })}
-                            >
-                                <option value="ENERGY_METER">Energy Meter</option>
-                                <option value="THERMOSTAT">Thermostat</option>
-                                <option value="ENV_SENSOR">Environmental Sensor</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Building</label>
-                            <select
-                                required
-                                className="input-scada w-full appearance-none"
-                                value={formData.building_id}
-                                onChange={e => setFormData({ ...formData, building_id: e.target.value })}
-                            >
-                                <option value="">Select Building...</option>
-                                {buildings.map(b => (
-                                    <option key={b.id} value={b.id}>{b.name}</option>
-                                ))}
-                            </select>
-                        </div>
-                        <div className="md:col-span-2">
-                            <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Location Detail</label>
-                            <input
-                                type="text"
-                                placeholder="e.g. Floor 2 Server Room"
-                                className="input-scada w-full"
-                                value={formData.location}
-                                onChange={e => setFormData({ ...formData, location: e.target.value })}
-                            />
-                        </div>
-                        <div className="md:col-span-2 flex justify-end gap-3 mt-4 pt-4 border-t border-white/5">
-                            <button
-                                type="button"
-                                onClick={() => setShowForm(false)}
-                                className="px-5 py-2.5 text-slate-400 hover:text-white transition-colors text-sm font-medium"
-                            >
-                                Cancel
-                            </button>
-                            <button
-                                type="submit"
-                                className="btn-primary"
-                            >
-                                Register Device
-                            </button>
-                        </div>
-                    </form>
+            {error && (
+                <div className="bg-red-500/10 border border-red-500/20 text-red-400 px-4 py-3 rounded-xl text-sm flex justify-between items-center">
+                    <span>{error}</span>
+                    <button onClick={() => setError('')}><X className="w-4 h-4" /></button>
                 </div>
             )}
 
-            {/* Filters (Mock UI) */}
-            <div className="flex gap-3 mb-6">
-                <div className="relative flex-1 max-w-sm group">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500 group-focus-within:text-scada-accent transition-colors" />
-                    <input
-                        type="text"
-                        placeholder="Search devices..."
-                        className="input-scada w-full pl-10 bg-scada-card/30 hover:bg-scada-card/50"
-                    />
+            {/* Search & Filters */}
+            <div className="flex flex-col sm:flex-row items-center gap-3">
+                <div className="relative flex-1 w-full">
+                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-forest-muted/50" />
+                    <input value={search} onChange={(e) => setSearch(e.target.value)}
+                        className="input-scada w-full pl-11"
+                        placeholder="Search devices..." />
                 </div>
-                <button className="flex items-center gap-2 px-4 py-2 glass-card hover:bg-white/5 text-slate-400 hover:text-white rounded-lg transition-colors border border-white/5">
-                    <Filter className="w-4 h-4" />
-                    <span className="font-medium text-sm">Filter</span>
-                </button>
+                <div className="flex items-center gap-1.5 p-0.5 rounded-xl border border-forest-border/20"
+                    style={{ background: 'rgba(5, 13, 5, 0.4)' }}>
+                    {types.map(t => (
+                        <button key={t} onClick={() => setFilterType(t)}
+                            className={`px-3.5 py-2 rounded-lg text-xs font-medium transition-all ${filterType === t
+                                ? 'text-emerald-300'
+                                : 'text-forest-muted hover:text-forest-cream'
+                                }`}
+                            style={filterType === t ? {
+                                background: 'linear-gradient(135deg, rgba(27, 67, 50, 0.4), rgba(45, 106, 79, 0.2))',
+                            } : undefined}>
+                            {t === 'ALL' ? 'All' : t}
+                        </button>
+                    ))}
+                </div>
             </div>
 
             {/* Device Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-                {devices.map(device => (
-                    <DeviceCard
-                        key={device.id}
-                        device={device}
-                        onRegenerateKey={handleRegenerateKey}
-                    />
-                ))}
-                {devices.length === 0 && (
-                    <div className="col-span-full py-16 text-center text-slate-500 bg-white/5 rounded-2xl border border-dashed border-white/10 flex flex-col items-center justify-center">
-                        <Search className="w-12 h-12 mb-4 opacity-50" />
-                        <p className="text-lg font-medium text-slate-400">No devices found</p>
-                        <p className="text-sm mt-1">Register your first device to get started.</p>
+            {filtered.length === 0 ? (
+                <div className="glass-panel rounded-2xl p-16 text-center">
+                    <span className="text-6xl block mb-4">📡</span>
+                    <h3 className="text-xl font-semibold text-forest-cream font-display mb-2">No Devices Found</h3>
+                    <p className="text-forest-muted text-sm">{search ? 'No devices match your search.' : 'Register your first device to get started.'}</p>
+                </div>
+            ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {filtered.map(d => <DeviceCard key={d.id} device={d} onRegenerateKey={handleRegenKey} />)}
+                </div>
+            )}
+
+            {/* Register Modal */}
+            {showForm && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-forest-darkest/85 backdrop-blur-md" onClick={() => setShowForm(false)}>
+                    <div className="rounded-3xl p-8 max-w-lg w-full border border-forest-border/25 page-enter"
+                        style={{
+                            background: 'linear-gradient(135deg, rgba(19, 42, 19, 0.97), rgba(10, 23, 10, 0.99))',
+                            boxShadow: '0 30px 100px rgba(0,0,0,0.6), 0 0 60px rgba(74, 222, 128, 0.04)',
+                        }}
+                        onClick={e => e.stopPropagation()}>
+                        <div className="flex justify-between items-center mb-6">
+                            <h2 className="text-xl font-bold text-forest-cream font-display flex items-center gap-2">
+                                <Leaf className="w-5 h-5 text-forest-spring" /> Register Device
+                            </h2>
+                            <button onClick={() => setShowForm(false)} className="text-forest-muted hover:text-forest-cream p-1"><X className="w-5 h-5" /></button>
+                        </div>
+                        <form onSubmit={handleRegister} className="space-y-4">
+                            <div>
+                                <label className="block text-xs text-forest-muted uppercase tracking-wider mb-1.5 font-medium">Device ID</label>
+                                <input value={form.device_id} onChange={(e) => setForm({ ...form, device_id: e.target.value })} className="input-scada w-full" required placeholder="e.g. TEMP-001" />
+                            </div>
+                            <div>
+                                <label className="block text-xs text-forest-muted uppercase tracking-wider mb-1.5 font-medium">Name</label>
+                                <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="input-scada w-full" required />
+                            </div>
+                            <div className="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label className="block text-xs text-forest-muted uppercase tracking-wider mb-1.5 font-medium">Type</label>
+                                    <select value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })} className="input-scada w-full">
+                                        <option value="sensor">Sensor</option>
+                                        <option value="actuator">Actuator</option>
+                                        <option value="controller">Controller</option>
+                                        <option value="gateway">Gateway</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="block text-xs text-forest-muted uppercase tracking-wider mb-1.5 font-medium">Building</label>
+                                    <select value={form.building_id} onChange={(e) => setForm({ ...form, building_id: e.target.value })} className="input-scada w-full">
+                                        <option value="">— None —</option>
+                                        {buildings.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+                                    </select>
+                                </div>
+                            </div>
+                            <button type="submit" className="btn-primary w-full flex items-center justify-center gap-2">
+                                <TreePine className="w-4 h-4" /> Register Device
+                            </button>
+                        </form>
                     </div>
-                )}
-            </div>
+                </div>
+            )}
         </div>
     );
-};
-
-export default DeviceManager;
+}

@@ -1,155 +1,202 @@
 import { useState, useEffect } from 'react';
+import { TreePine, Leaf, Activity, Thermometer, Droplets, Bell, Radio, Building, Zap, TrendingUp, AlertTriangle, Sparkles } from 'lucide-react';
 import api from '../services/api';
 import LiveChart from '../components/LiveChart';
 import DeviceCard from '../components/DeviceCard';
-import { Activity, Zap, AlertTriangle, CheckCircle } from 'lucide-react';
 
-const Dashboard = () => {
-    const [stats, setStats] = useState(null);
+const StatCard = ({ title, value, icon: Icon, trend, color, glowColor }) => (
+    <div className="glass-card p-6 rounded-2xl group relative overflow-hidden">
+        {/* Hover glow */}
+        <div className="absolute top-0 right-0 w-20 h-20 rounded-full blur-3xl pointer-events-none opacity-0 group-hover:opacity-40 transition-opacity duration-500"
+            style={{ background: glowColor || 'rgba(74, 222, 128, 0.15)' }} />
+
+        <div className="flex items-center justify-between relative z-10">
+            <div>
+                <p className="text-xs text-forest-muted font-semibold uppercase tracking-wider mb-1">{title}</p>
+                <h3 className="text-3xl font-bold text-forest-cream">{value}</h3>
+                {trend && (
+                    <p className={`text-xs mt-1.5 flex items-center gap-1 ${trend > 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                        <TrendingUp className={`w-3 h-3 ${trend < 0 ? 'rotate-180' : ''}`} />
+                        {Math.abs(trend)}% from last week
+                    </p>
+                )}
+            </div>
+            <div className="p-3.5 rounded-xl border transition-all duration-300 group-hover:scale-110"
+                style={{
+                    background: `${color}12`,
+                    borderColor: `${color}20`,
+                }}>
+                <Icon className="w-6 h-6" style={{ color }} />
+            </div>
+        </div>
+    </div>
+);
+
+export default function Dashboard() {
+    const [stats, setStats] = useState({});
     const [devices, setDevices] = useState([]);
     const [alerts, setAlerts] = useState([]);
     const [energyData, setEnergyData] = useState([]);
     const [comfortData, setComfortData] = useState([]);
     const [loading, setLoading] = useState(true);
 
-    // Poll for data every 5 seconds (simulated WebSocket)
     useEffect(() => {
-        const fetchData = async () => {
-            try {
-                const [dashboardRes, devicesRes, alertsRes, energyRes, comfortRes] = await Promise.all([
-                    api.get('/analytics/dashboard'),
-                    api.get('/devices/'),
-                    api.get('/alerts/?limit=5'),
-                    api.get('/analytics/energy?limit=20'),
-                    api.get('/analytics/comfort?limit=20')
-                ]);
-
-                setStats(dashboardRes.data);
-                setDevices(devicesRes.data.devices || []);
-                setAlerts(alertsRes.data.alerts || []);
-
-                setEnergyData(energyRes.data.data?.map(d => ({ timestamp: d.date, value: d.kwh })) || []);
-                setComfortData(comfortRes.data.data?.map(d => ({ timestamp: d.date, value: d.temperature })) || []);
-
-            } catch (error) {
-                console.error("Failed to fetch dashboard data:", error);
-            } finally {
-                setLoading(false);
-            }
-        };
-
         fetchData();
-        const interval = setInterval(fetchData, 5000); // 5s polling
-        return () => clearInterval(interval);
     }, []);
+
+    const fetchData = async () => {
+        try {
+            const [dashRes, devRes, alertRes] = await Promise.allSettled([
+                api.get('/api/analytics/dashboard'),
+                api.get('/api/devices/'),
+                api.get('/api/alerts/?limit=5'),
+            ]);
+            if (dashRes.status === 'fulfilled') {
+                const d = dashRes.value.data;
+                setStats(d);
+                setEnergyData(d.energy_trend || []);
+                setComfortData(d.comfort_trend || []);
+            }
+            if (devRes.status === 'fulfilled') {
+                const devData = devRes.value.data;
+                const devArr = Array.isArray(devData) ? devData : (devData?.devices || []);
+                setDevices(devArr.slice(0, 4));
+            }
+            if (alertRes.status === 'fulfilled') {
+                const alertData = alertRes.value.data;
+                setAlerts(Array.isArray(alertData) ? alertData : (alertData?.alerts || []));
+            }
+        } catch { } finally { setLoading(false); }
+    };
 
     if (loading) return (
         <div className="flex items-center justify-center h-[50vh]">
-            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-scada-accent"></div>
+            <div className="relative">
+                <div className="animate-spin rounded-full h-14 w-14 border-t-2 border-b-2 border-forest-spring"></div>
+                <TreePine className="w-6 h-6 text-forest-spring absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
+            </div>
         </div>
     );
 
     return (
         <div className="space-y-8">
-            {/* Header Stats */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                <StatCard
-                    title="Total Buildings"
-                    value={stats?.total_buildings || 0}
-                    icon={Activity}
-                    color="text-blue-400 bg-blue-500/10 border-blue-500/20"
-                />
-                <StatCard
-                    title="Active Devices"
-                    value={`${stats?.online_devices || 0} / ${stats?.total_devices || 0}`}
-                    icon={Zap}
-                    color="text-amber-400 bg-amber-500/10 border-amber-500/20"
-                />
-                <StatCard
-                    title="Critical Alerts"
-                    value={stats?.total_alerts || 0}
-                    icon={AlertTriangle}
-                    color="text-rose-400 bg-rose-500/10 border-rose-500/20"
-                />
-                <StatCard
-                    title="System Status"
-                    value="OPERATIONAL"
-                    icon={CheckCircle}
-                    color="text-emerald-400 bg-emerald-500/10 border-emerald-500/20"
-                />
-            </div>
-
-            {/* Main Charts Area */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                <div className="glass-panel p-1 rounded-2xl">
-                    <LiveChart data={energyData} metric="Energy Consumption (kWh)" color="#F59E0B" unit="kWh" />
+            {/* Header */}
+            <div className="flex items-center justify-between">
+                <div>
+                    <h1 className="text-3xl font-bold text-forest-cream tracking-tight font-display flex items-center gap-3">
+                        <Leaf className="w-7 h-7 text-forest-spring" />
+                        Dashboard
+                    </h1>
+                    <p className="text-sm text-forest-muted mt-1.5">Your farm's vital signs and environmental overview</p>
                 </div>
-                <div className="glass-panel p-1 rounded-2xl">
-                    <LiveChart data={comfortData} metric="Avg. Temperature (°C)" color="#EF4444" unit="°C" />
+                <div className="flex items-center gap-2.5 px-4 py-2 rounded-xl border border-emerald-500/15"
+                    style={{ background: 'linear-gradient(135deg, rgba(82, 183, 136, 0.08), rgba(74, 222, 128, 0.04))' }}>
+                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-live-pulse"
+                        style={{ boxShadow: '0 0 8px rgba(74, 222, 128, 0.6)' }} />
+                    <span className="text-xs text-emerald-300 font-bold uppercase tracking-wider">Live</span>
                 </div>
             </div>
 
-            {/* Device Overview & Recent Alerts */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                {/* Device Status Feed */}
-                <div className="lg:col-span-2 space-y-6">
-                    <div className="flex items-center justify-between px-2">
-                        <h2 className="text-xl font-bold text-white tracking-tight">Live Device Status</h2>
-                        <button className="text-xs font-semibold text-blue-400 hover:text-blue-300 transition-colors uppercase tracking-wider">View All Devices →</button>
+            {/* Stat Cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                <StatCard title="Total Devices" value={stats.total_devices || 0} icon={Radio} color="#52b788" glowColor="rgba(82, 183, 136, 0.15)" trend={8} />
+                <StatCard title="Active Buildings" value={stats.total_buildings || 0} icon={Building} color="#40916c" glowColor="rgba(64, 145, 108, 0.15)" />
+                <StatCard title="Energy (kWh)" value={stats.energy_today || '—'} icon={Zap} color="#e6b422" glowColor="rgba(230, 180, 34, 0.15)" trend={-3} />
+                <StatCard title="Active Alerts" value={stats.active_alerts || 0} icon={Bell} color="#ef4444" glowColor="rgba(239, 68, 68, 0.12)" />
+            </div>
+
+            {/* Antigravity Intelligence Widget */}
+            <div className="glass-panel p-8 rounded-[2.5rem] border border-forest-spring/20 relative overflow-hidden bg-gradient-to-br from-forest-spring/5 to-transparent">
+                <div className="absolute top-0 right-0 p-8 opacity-20 rotate-12">
+                    <Zap className="w-32 h-32 text-forest-spring" />
+                </div>
+                <div className="relative z-10 flex flex-col md:flex-row items-center gap-8">
+                    <div className="w-20 h-20 rounded-3xl bg-forest-spring/15 border border-forest-spring/20 flex items-center justify-center flex-shrink-0 animate-float shadow-[0_0_30px_rgba(74,222,128,0.2)]">
+                        <Sparkles className="w-10 h-10 text-forest-spring" />
                     </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                        {devices.slice(0, 4).map(device => (
-                            <DeviceCard key={device.id} device={device} />
-                        ))}
+                    <div className="flex-1 text-center md:text-left">
+                        <h2 className="text-2xl font-bold text-forest-cream font-display mb-2">Antigravity Intelligence</h2>
+                        <p className="text-sm text-forest-muted max-w-2xl">
+                            Ecosystem is performing at <span className="text-forest-spring font-bold">Optimal Capacity</span>. All sensor matrices are synchronized.
+                            Predicted harvest yield for <span className="text-forest-gold">Batch CM-2026-04</span> has increased by <span className="text-forest-spring font-bold">4.2%</span> due to optimized light cycles.
+                        </p>
+                    </div>
+                    <div className="flex gap-3">
+                        <button className="px-6 py-2.5 rounded-xl bg-forest-spring text-forest-darkest font-bold text-xs uppercase tracking-widest hover:scale-105 transition-all shadow-[0_0_20px_rgba(74,222,128,0.2)]">
+                            View Analysis
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            {/* Charts */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div className="glass-panel rounded-2xl overflow-hidden">
+                    <LiveChart data={energyData} metric="Energy Consumption" color="#52b788" unit="kWh" />
+                </div>
+                <div className="glass-panel rounded-2xl overflow-hidden">
+                    <LiveChart data={comfortData} metric="Comfort Index" color="#e6b422" unit="%" />
+                </div>
+            </div>
+
+            {/* Bottom: Devices + Alerts */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                {/* Devices */}
+                <div className="lg:col-span-2 space-y-4">
+                    <div className="flex items-center justify-between">
+                        <h2 className="text-lg font-bold text-forest-cream font-display flex items-center gap-2">
+                            <Radio className="w-5 h-5 text-forest-spring" /> Connected Devices
+                        </h2>
+                        <span className="text-xs text-forest-muted bg-forest-card/30 px-3 py-1 rounded-full border border-forest-border/15">{devices.length} devices</span>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {devices.map(d => <DeviceCard key={d.id} device={d} />)}
+                        {devices.length === 0 && (
+                            <div className="glass-card rounded-2xl p-10 text-center col-span-2">
+                                <span className="text-5xl block mb-3">📡</span>
+                                <p className="text-forest-muted">No devices connected yet</p>
+                            </div>
+                        )}
                     </div>
                 </div>
 
-                {/* Recent Alerts Feed */}
-                <div className="glass-panel rounded-2xl p-6 h-full flex flex-col">
-                    <div className="flex items-center justify-between mb-6">
-                        <h2 className="text-lg font-bold text-white tracking-tight">Recent Alerts</h2>
-                        <div className="h-2 w-2 rounded-full bg-rose-500 animate-pulse"></div>
+                {/* Alerts Feed */}
+                <div>
+                    <div className="flex items-center justify-between mb-4">
+                        <h2 className="text-lg font-bold text-forest-cream font-display flex items-center gap-2">
+                            <Bell className="w-5 h-5 text-amber-400" /> Recent Alerts
+                        </h2>
                     </div>
-
-                    <div className="space-y-3 overflow-y-auto custom-scrollbar flex-1 max-h-[400px]">
+                    <div className="glass-panel rounded-2xl p-5 space-y-3 max-h-[450px] overflow-y-auto">
                         {alerts.length === 0 ? (
-                            <div className="flex flex-col items-center justify-center h-full text-center py-8 opacity-50">
-                                <CheckCircle className="w-8 h-8 text-emerald-500 mb-2" />
-                                <p className="text-sm text-scada-muted">All systems nominal</p>
+                            <div className="text-center py-8">
+                                <span className="text-4xl block mb-2">🌿</span>
+                                <p className="text-sm text-forest-muted">All clear. The forest is at peace.</p>
                             </div>
                         ) : (
-                            alerts.map(alert => (
-                                <div key={alert.id} className="p-4 rounded-xl bg-white/5 border border-white/5 hover:bg-white/10 transition-colors group relative overflow-hidden">
-                                    <div className={`absolute left-0 top-0 bottom-0 w-1 ${alert.severity === 'CRITICAL' ? 'bg-rose-500' : 'bg-amber-500'}`} />
-                                    <div className="flex items-start gap-3 pl-2">
-                                        <AlertTriangle className={`w-5 h-5 shrink-0 mt-0.5 ${alert.severity === 'CRITICAL' ? 'text-rose-500' : 'text-amber-500'
-                                            }`} />
-                                        <div>
-                                            <p className="text-sm font-semibold text-white group-hover:text-blue-200 transition-colors">{alert.rule_name}</p>
-                                            <p className="text-[11px] text-slate-400 mt-1 uppercase tracking-wide font-medium">{new Date(alert.timestamp).toLocaleString()}</p>
-                                            <p className="text-xs text-slate-300 mt-2 leading-relaxed opacity-90">{alert.message}</p>
+                            alerts.map((a, i) => {
+                                const sevColors = {
+                                    CRITICAL: { bg: 'bg-red-500/8', border: 'border-red-500/15', text: 'text-red-400', icon: '🔴' },
+                                    HIGH: { bg: 'bg-amber-500/8', border: 'border-amber-500/15', text: 'text-amber-400', icon: '🟡' },
+                                    MEDIUM: { bg: 'bg-forest-gold/8', border: 'border-forest-gold/15', text: 'text-forest-gold', icon: '🟠' },
+                                    LOW: { bg: 'bg-forest-spring/8', border: 'border-forest-spring/15', text: 'text-forest-spring', icon: '🟢' },
+                                };
+                                const s = sevColors[a.severity] || sevColors.MEDIUM;
+                                return (
+                                    <div key={i} className={`p-4 rounded-xl ${s.bg} border ${s.border} transition-all hover:scale-[1.01]`}>
+                                        <div className="flex items-center gap-2 mb-1">
+                                            <span className="text-xs">{s.icon}</span>
+                                            <span className={`text-xs font-bold uppercase tracking-wider ${s.text}`}>{a.severity}</span>
                                         </div>
+                                        <p className="text-sm text-forest-cream">{a.message}</p>
+                                        <p className="text-[11px] text-forest-muted/50 mt-1">{new Date(a.triggered_at).toLocaleString()}</p>
                                     </div>
-                                </div>
-                            ))
+                                );
+                            })
                         )}
                     </div>
                 </div>
             </div>
         </div>
     );
-};
-
-const StatCard = ({ title, value, icon: Icon, color }) => (
-    <div className="glass-card p-5 rounded-2xl flex items-center justify-between group">
-        <div>
-            <p className="text-xs text-slate-400 font-semibold uppercase tracking-wider mb-1 group-hover:text-white transition-colors">{title}</p>
-            <h3 className="text-3xl font-bold text-white tracking-tight group-hover:scale-105 transition-transform origin-left">{value}</h3>
-        </div>
-        <div className={`p-3.5 rounded-xl border ${color} shadow-lg shadow-black/20 group-hover:shadow-black/40 transition-shadow`}>
-            <Icon className="w-6 h-6" />
-        </div>
-    </div>
-);
-
-export default Dashboard;
+}

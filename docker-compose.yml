@@ -1,0 +1,33 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: kvedaa_backend
+    ports:
+      - "8000:8000"
+    env_file:
+      - ./backend/.env
+    # Volume mapping for live reloading if desired
+    volumes:
+      - ./backend:/app
+
+  frontend:
+    build:
+      context: ./Frontend
+      dockerfile: Dockerfile
+    container_name: kvedaa_frontend
+    ports:
+      - "5173:5173"
+    environment:
+      # Expose API via localhost from the user's browser perspective
+      - VITE_API_URL=http://localhost:8000
+    depends_on:
+      - backend
+    # Mapping source code so hot-module replacement (HMR) still works
+    volumes:
+      - ./Frontend:/app
+      # Create an anonymous volume for node_modules to avoid syncing host environment modules
+      - /app/node_modules
