@@ -258,13 +258,13 @@ export default function AuthModal({ open, onClose, onLogin }) {
                                     className="px-12 pb-12 space-y-7"
                                 >
                                     <div>
-                                        <label className="block text-base text-forest-muted mb-2.5 font-medium">Email</label>
+                                        <label className="block text-base text-forest-muted mb-2.5 font-medium">Email or Mobile</label>
                                         <input
-                                            type="email"
+                                            type="text"
                                             value={loginEmail}
                                             onChange={(e) => setLoginEmail(e.target.value)}
                                             className={inputClass}
-                                            placeholder="your@email.com"
+                                            placeholder="your@email.com or +91..."
                                             required
                                             id="auth-login-email"
                                         />

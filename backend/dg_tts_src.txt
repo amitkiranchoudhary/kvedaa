@@ -1,0 +1,45 @@
+    def __init__(
+        self,
+        *,
+        api_key: str,
+        voice: str = "aura-2-helena-en",
+        base_url: str = "wss://api.deepgram.com",
+        sample_rate: Optional[int] = None,
+        encoding: str = "linear16",
+        **kwargs,
+    ):
+        """Initialize the Deepgram WebSocket TTS service.
+
+        Args:
+            api_key: Deepgram API key for authentication.
+            voice: Voice model to use for synthesis. Defaults to "aura-2-helena-en".
+            base_url: WebSocket base URL for Deepgram API. Defaults to "wss://api.deepgram.com".
+            sample_rate: Audio sample rate in Hz. If None, uses service default.
+            encoding: Audio encoding format. Defaults to "linear16". Must be one of SUPPORTED_ENCODINGS.
+            **kwargs: Additional arguments passed to parent InterruptibleTTSService class.
+
+        Raises:
+            ValueError: If encoding is not in SUPPORTED_ENCODINGS.
+        """
+        if encoding.lower() not in self.SUPPORTED_ENCODINGS:
+            raise ValueError(
+                f"Unsupported encoding '{encoding}'. Must be one of {', '.join(self.SUPPORTED_ENCODINGS)} for WebSocket TTS."
+            )
+
+        super().__init__(
+            sample_rate=sample_rate,
+            pause_frame_processing=True,
+            push_stop_frames=True,
+            append_trailing_space=True,
+            **kwargs,
+        )
+
+        self._api_key = api_key
+        self._base_url = base_url
+        self._settings = {
+            "encoding": encoding,
+        }
+        self.set_voice(voice)
+
+        self._receive_task = None
+        self._context_id: Optional[str] = None

@@ -10,7 +10,7 @@ const QUALITY_DATA = [
         icon: '🍄',
         info: 'Our Cordyceps militaris is grown in our state-of-the-art Antigravity Hub under highly precise, computer-controlled SCADA parameters. This ensures optimal fruiting body development, free from heavy metals or contaminations.',
         benefits: ['High Cordycepin levels', '100% sterile indoor cultivation', 'Lab-verified active compounds', 'Sustainably harvested'],
-        image: 'https://images.unsplash.com/photo-1614059438018-87ddf3b17431?w=600&h=400&fit=crop',
+        image: 'https://images.unsplash.com/photo-1563245372-f21724e3856d?w=600&h=400&fit=crop',
     },
     {
         id: 'turmeric',
@@ -18,7 +18,7 @@ const QUALITY_DATA = [
         icon: '🌑',
         info: 'KiranVedaa Black Turmeric (Curcuma caesia) is known for its intense dark hue and high concentration of unique antioxidants. We cultivate it using organic soil amendments without any harsh chemical fertilizers.',
         benefits: ['Pesticide-free organic growth', 'Premium soil nutrition', 'Deep blue-black rhizomes', 'Intact essential oils'],
-        image: 'https://images.unsplash.com/photo-1615485925600-97237c4fc1ec?w=600&h=400&fit=crop',
+        image: 'https://images.unsplash.com/photo-1607631568010-a87245c0daf8?w=600&h=400&fit=crop',
     },
     {
         id: 'musli',
@@ -26,7 +26,7 @@ const QUALITY_DATA = [
         icon: '🪴',
         info: 'Safed Musli is carefully nurtured to ensure the maximum development of active saponins. The roots are meticulously hand-harvested and sun-dried to lock in their adaptogenic properties.',
         benefits: ['High saponin content', 'Traditional sun-drying process', 'Non-GMO seeds', 'Exceptional purity'],
-        image: 'https://images.unsplash.com/photo-1540420773420-3366772f4999?w=600&h=400&fit=crop',
+        image: 'https://images.unsplash.com/photo-1591261730799-ee4e6c2d16d7?w=600&h=400&fit=crop',
     },
     {
         id: 'cannabis',
@@ -34,7 +34,7 @@ const QUALITY_DATA = [
         icon: '🌿',
         info: 'Cultivated strictly under regulatory compliance, our medical cannabis emphasizes stable cannabinoid profiles and complete absence of molds or pathogens, ensuring safety for clinical use.',
         benefits: ['Strict SCADA environmental control', 'Consistent Cannabinoid Profiles', 'Pathogen and Mold Free', 'Medical-Grade Quality'],
-        image: 'https://images.unsplash.com/photo-1603903631889-b5f3ba4d5b9b?w=600&h=400&fit=crop',
+        image: 'https://images.unsplash.com/photo-1536819114556-1e10f967fb61?w=600&h=400&fit=crop',
     },
 ];
 

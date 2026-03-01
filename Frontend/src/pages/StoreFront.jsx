@@ -3,12 +3,14 @@ import { useNavigate, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     ShoppingCart, Shield, Award, Leaf, ChevronRight, FlaskConical,
-    CheckCircle2, Sparkles, TreePine, Star, ArrowRight, Heart, X,
-    Filter, ChevronDown, Package, Sun, Sprout, Flower2, Minus, Plus, Trash2, LogIn
+    CheckCircle2, Sparkles, TreePine, Star, ArrowRight, ArrowLeft, Heart, X,
+    Filter, ChevronDown, Package, Sun, Sprout, Flower2, Minus, Plus, Trash2, LogIn, Phone, PhoneCall, ClipboardList
 } from 'lucide-react';
 import AuthModal from '../components/AuthModal';
+import { orderAPI } from '../services/api';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+const VOICE_BOT_URL = import.meta.env.VITE_VOICE_BOT_URL || 'http://localhost:8000';
 
 /* ═══════════════════════════════════════════
    🌿 PRODUCT CATEGORIES — Multi-Crop Farm
@@ -27,14 +29,14 @@ const SHOWCASE_PRODUCTS = [
         id: 'cm-001', name: 'Cordyceps Militaris Powder', category: 'cordyceps',
         price: 1499, weight_grams: 50, strain: 'CM-01',
         description: 'Premium lab-grown Cordyceps Militaris powder. Rich in cordycepin & adenosine for energy and immunity.',
-        image: 'https://images.unsplash.com/photo-1615485290382-441e4d049cb5?w=600&h=400&fit=crop',
+        image: 'https://images.unsplash.com/photo-1563245372-f21724e3856d?w=600&h=400&fit=crop',
         lab_tested: true, quality_grade: 'A+', harvest_date: '2026-02-01',
     },
     {
         id: 'cm-002', name: 'Cordyceps Dried Fruiting Body', category: 'cordyceps',
         price: 2499, weight_grams: 30, strain: 'CM-02',
         description: 'Hand-harvested whole Cordyceps fruiting bodies. Maximum potency for tinctures & extracts.',
-        image: 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=600&h=400&fit=crop',
+        image: 'https://images.unsplash.com/photo-1580822184713-fc5400e7fe10?w=600&h=400&fit=crop',
         lab_tested: true, quality_grade: 'A+', harvest_date: '2026-01-28',
     },
     {
@@ -48,35 +50,35 @@ const SHOWCASE_PRODUCTS = [
         id: 'yt-002', name: 'Fresh Yellow Turmeric Roots', category: 'yellow-turmeric',
         price: 199, weight_grams: 500,
         description: 'Fresh organic yellow turmeric rhizomes, directly from our farm. Perfect for home use.',
-        image: 'https://images.unsplash.com/photo-1455619452474-d2be8b1e70cd?w=600&h=400&fit=crop',
+        image: 'https://images.unsplash.com/photo-1615485500704-8e990f9900f7?w=600&h=400&fit=crop',
         lab_tested: false, quality_grade: 'A',
     },
     {
         id: 'bt-001', name: 'Black Turmeric (Kali Haldi)', category: 'black-turmeric',
         price: 899, weight_grams: 100,
         description: 'Rare Curcuma caesia — the legendary black turmeric. Deeply aromatic and medicinal, ethically wild-harvested.',
-        image: 'https://images.unsplash.com/photo-1596040033229-a9821ebd058d?w=600&h=400&fit=crop',
+        image: 'https://images.unsplash.com/photo-1607631568010-a87245c0daf8?w=600&h=400&fit=crop',
         lab_tested: true, quality_grade: 'A+',
     },
     {
         id: 'bt-002', name: 'Black Turmeric Extract Drops', category: 'black-turmeric',
         price: 1299, weight_grams: 30,
         description: 'Concentrated black turmeric liquid extract. 10x potency for wellness protocols.',
-        image: 'https://images.unsplash.com/photo-1563822249366-3efb23b8e0c9?w=600&h=400&fit=crop',
+        image: 'https://images.unsplash.com/photo-1615485925763-905a431b14c4?w=600&h=400&fit=crop',
         lab_tested: true, quality_grade: 'A+',
     },
     {
         id: 'wm-001', name: 'Safed Musli Powder', category: 'white-musli',
         price: 999, weight_grams: 100,
         description: 'Pure Chlorophytum borivilianum root powder. Known as "White Gold" — a powerful Ayurvedic adaptogen.',
-        image: 'https://images.unsplash.com/photo-1540420773420-3366772f4999?w=600&h=400&fit=crop',
+        image: 'https://images.unsplash.com/photo-1591261730799-ee4e6c2d16d7?w=600&h=400&fit=crop',
         lab_tested: true, quality_grade: 'A',
     },
     {
         id: 'wm-002', name: 'White Musli Root (Dried)', category: 'white-musli',
         price: 799, weight_grams: 150,
         description: 'Hand-picked and sun-dried White Musli roots. Full potency preserved for traditional preparations.',
-        image: 'https://images.unsplash.com/photo-1471943311424-646960669fbc?w=600&h=400&fit=crop',
+        image: 'https://images.unsplash.com/photo-1587049352846-4a222e784d38?w=600&h=400&fit=crop',
         lab_tested: false, quality_grade: 'A',
     },
 ];
@@ -103,6 +105,16 @@ const StoreFront = ({ onLogin: parentOnLogin, user: parentUser, cart, addToCart,
     // ─── Auth Modal State ───
     const [authModalOpen, setAuthModalOpen] = useState(false);
     const [storeUser, setStoreUser] = useState(parentUser || null);
+
+    // ─── Call Modal State ───
+    const [callModalOpen, setCallModalOpen] = useState(false);
+    const [callPhone, setCallPhone] = useState('+91 ');
+    const [callStatus, setCallStatus] = useState(null); // null | 'calling' | 'success' | 'error'
+    const [callMessage, setCallMessage] = useState('');
+
+    // ─── Checkout State ───
+    const [checkingOut, setCheckingOut] = useState(false);
+    const [checkoutError, setCheckoutError] = useState('');
 
     // Sync with parent user prop
     useEffect(() => {
@@ -145,6 +157,77 @@ const StoreFront = ({ onLogin: parentOnLogin, user: parentUser, cart, addToCart,
     const handleAuthModalClose = () => {
         setAuthModalOpen(false);
         sessionStorage.setItem('auth_modal_dismissed', 'true');
+    };
+
+    // ─── Checkout Handler ───
+    const handleCheckout = async () => {
+        // Require login
+        if (!storeUser) {
+            setCartOpen(false);
+            setAuthModalOpen(true);
+            return;
+        }
+        setCheckingOut(true);
+        setCheckoutError('');
+        try {
+            const itemNames = cart.map(i => `${i.name} x${i.qty}`);
+            await orderAPI.create({
+                items: itemNames,
+                total_amount: totalPrice,
+            });
+            // Clear cart
+            cart.forEach(i => removeFromCart(i.id));
+            setCartOpen(false);
+            navigate('/order-status');
+        } catch (err) {
+            console.error('Checkout failed:', err);
+            if (err.response?.status === 401) {
+                // Token expired — clear stale session and re-prompt login
+                setStoreUser(null);
+                if (parentOnLogin) parentOnLogin(null);
+                setCartOpen(false);
+                setAuthModalOpen(true);
+                setCheckoutError('');
+            } else {
+                setCheckoutError(err.response?.data?.detail || 'Checkout failed. Please try again.');
+            }
+        } finally {
+            setCheckingOut(false);
+        }
+    };
+
+    // ─── Call Handler ───
+    const handleCallMe = async () => {
+        const cleanPhone = callPhone.replace(/\s+/g, '');
+        if (!cleanPhone || cleanPhone.length < 10) {
+            setCallMessage('Please enter a valid phone number');
+            setCallStatus('error');
+            return;
+        }
+        setCallStatus('calling');
+        setCallMessage('Connecting you to KvedaaBot...');
+        try {
+            const resp = await fetch(`${VOICE_BOT_URL}/dialout`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ to_number: cleanPhone }),
+            });
+            if (!resp.ok) {
+                const err = await resp.json();
+                throw new Error(err.detail || 'Call failed');
+            }
+            const data = await resp.json();
+            setCallStatus('success');
+            setCallMessage('📞 KvedaaBot is calling you now! Please answer your phone.');
+            setTimeout(() => {
+                setCallModalOpen(false);
+                setCallStatus(null);
+                setCallMessage('');
+            }, 6000);
+        } catch (err) {
+            setCallStatus('error');
+            setCallMessage(`❌ ${err.message}`);
+        }
     };
 
     useEffect(() => {
@@ -261,7 +344,7 @@ const StoreFront = ({ onLogin: parentOnLogin, user: parentUser, cart, addToCart,
                 {/* Dark overlay — very light top, gradual darkening */}
                 <div className="absolute inset-0"
                     style={{
-                        background: 'linear-gradient(180deg, rgba(5,13,5,0.05) 0%, rgba(5,13,5,0.25) 35%, rgba(5,13,5,0.6) 75%, rgba(5,13,5,0.85) 100%)',
+                        background: 'linear-gradient(180deg, rgba(5,13,5,0.02) 0%, rgba(5,13,5,0.08) 35%, rgba(5,13,5,0.25) 75%, rgba(5,13,5,0.5) 100%)',
                     }} />
             </div>
 
@@ -295,6 +378,9 @@ const StoreFront = ({ onLogin: parentOnLogin, user: parentUser, cart, addToCart,
                                         Dashboard
                                     </Link>
                                 )}
+                                <Link to="/order-status" className="text-sm text-forest-muted hover:text-forest-cream transition-colors hidden sm:flex items-center gap-1.5">
+                                    <ClipboardList className="w-4 h-4" /> My Orders
+                                </Link>
                                 <span className="text-sm text-forest-spring font-medium flex items-center gap-1.5 border-l border-forest-border/20 pl-4">
                                     <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
                                     {storeUser.first_name || 'User'}
@@ -454,10 +540,26 @@ const StoreFront = ({ onLogin: parentOnLogin, user: parentUser, cart, addToCart,
                                 <Leaf className="w-5 h-5" /> Explore Products
                                 <ArrowRight className="w-4 h-4 ml-1 group-hover:translate-x-1 transition-transform" />
                             </Link>
+                            <button
+                                onClick={() => setCallModalOpen(true)}
+                                className="w-14 h-14 rounded-full flex items-center justify-center transition-all active:scale-90 hover:scale-110 group"
+                                style={{
+                                    background: 'linear-gradient(135deg, #22c55e, #16a34a)',
+                                    boxShadow: '0 4px 20px rgba(34, 197, 94, 0.35), inset 0 1px 0 rgba(255,255,255,0.15)',
+                                }}
+                                id="hero-call-btn"
+                                title="Talk to KvedaaBot AI"
+                            >
+                                <Phone className="w-6 h-6 text-white group-hover:animate-bounce" />
+                            </button>
                             <Link to="/quality"
-                                className="px-9 py-4 rounded-2xl border border-forest-border/25 hover:bg-forest-card/25 text-forest-mist font-medium transition-all text-base hover:border-forest-border/40"
-                                style={{ backdropFilter: 'blur(8px)' }}>
-                                Our Quality Promise
+                                className="px-9 py-4 rounded-2xl text-white font-semibold transition-all active:scale-95 flex items-center gap-2 text-base group"
+                                style={{
+                                    background: 'linear-gradient(135deg, #f57c00, #7cb342, #2d5a27)',
+                                    boxShadow: '0 6px 30px rgba(124, 179, 66, 0.25), 0 0 80px rgba(245, 124, 0, 0.06), inset 0 1px 0 rgba(255,255,255,0.1)',
+                                }}>
+                                <ArrowLeft className="w-4 h-4 mr-1 group-hover:-translate-x-1 transition-transform" />
+                                Our Quality Promise <Shield className="w-5 h-5 ml-1" />
                             </Link>
                         </div>
                     </motion.div>
@@ -809,6 +911,102 @@ const StoreFront = ({ onLogin: parentOnLogin, user: parentUser, cart, addToCart,
                 </div>
             </section>
 
+            {/* ═══ FLOATING CALL BUTTON ═══ */}
+            <button
+                onClick={() => setCallModalOpen(true)}
+                className="fixed bottom-8 right-8 z-50 w-16 h-16 rounded-full flex items-center justify-center group transition-all active:scale-90 hover:scale-110"
+                style={{
+                    background: 'linear-gradient(135deg, #22c55e, #16a34a)',
+                    boxShadow: '0 4px 25px rgba(34, 197, 94, 0.4), 0 0 60px rgba(34, 197, 94, 0.15)',
+                }}
+                id="floating-call-btn"
+            >
+                <Phone className="w-7 h-7 text-white group-hover:animate-bounce" />
+                <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-red-500 animate-ping" />
+                <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-red-500" />
+            </button>
+
+            {/* ═══ CALL MODAL ═══ */}
+            <AnimatePresence>
+                {callModalOpen && (
+                    <motion.div
+                        initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                        className="fixed inset-0 z-[100] flex items-center justify-center px-4"
+                        onClick={() => { setCallModalOpen(false); setCallStatus(null); setCallMessage(''); }}
+                    >
+                        <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+                        <motion.div
+                            initial={{ scale: 0.9, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.9, opacity: 0, y: 20 }}
+                            className="relative w-full max-w-md rounded-3xl border border-forest-spring/20 p-8 shadow-2xl overflow-hidden"
+                            style={{ background: 'linear-gradient(145deg, rgba(15, 33, 15, 0.98), rgba(5, 13, 5, 0.98))' }}
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            {/* Glow */}
+                            <div className="absolute top-0 right-0 w-48 h-48 rounded-full bg-forest-spring/10 blur-[100px] pointer-events-none" />
+
+                            <button onClick={() => { setCallModalOpen(false); setCallStatus(null); setCallMessage(''); }}
+                                className="absolute top-4 right-4 p-2 rounded-xl hover:bg-forest-card/40 transition-colors">
+                                <X className="w-5 h-5 text-forest-muted" />
+                            </button>
+
+                            <div className="text-center mb-6">
+                                <div className="w-20 h-20 rounded-full mx-auto mb-4 flex items-center justify-center"
+                                    style={{ background: 'linear-gradient(135deg, rgba(34, 197, 94, 0.15), rgba(34, 197, 94, 0.05))', border: '2px solid rgba(34, 197, 94, 0.2)' }}>
+                                    <PhoneCall className="w-9 h-9 text-emerald-400" />
+                                </div>
+                                <h3 className="text-2xl font-bold text-forest-cream font-display">Talk to KvedaaBot</h3>
+                                <p className="text-sm text-forest-muted mt-2">Our AI voice assistant will call you and answer all your questions about our products</p>
+                            </div>
+
+                            <div className="mb-6">
+                                <label className="text-xs text-forest-muted uppercase tracking-wider font-bold mb-2 block">Your Phone Number</label>
+                                <input
+                                    type="tel"
+                                    value={callPhone}
+                                    onChange={(e) => setCallPhone(e.target.value)}
+                                    placeholder="+91 XXXXX XXXXX"
+                                    className="w-full px-5 py-4 rounded-2xl border border-forest-border/20 text-xl font-semibold text-center tracking-widest text-forest-cream focus:border-emerald-400/50 focus:outline-none transition-all"
+                                    style={{ background: 'rgba(5, 13, 5, 0.6)' }}
+                                    id="call-phone-input"
+                                />
+                            </div>
+
+                            {callMessage && (
+                                <div className={`mb-4 p-3 rounded-xl text-sm text-center font-medium ${callStatus === 'success' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' :
+                                    callStatus === 'error' ? 'bg-red-500/10 text-red-400 border border-red-500/20' :
+                                        'bg-amber-500/10 text-amber-400 border border-amber-500/20'
+                                    }`}>
+                                    {callMessage}
+                                </div>
+                            )}
+
+                            <button
+                                onClick={handleCallMe}
+                                disabled={callStatus === 'calling' || callStatus === 'success'}
+                                className="w-full py-4 rounded-2xl text-white font-bold text-lg transition-all active:scale-95 flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed"
+                                style={{
+                                    background: callStatus === 'success' ? 'linear-gradient(135deg, #059669, #10b981)' : 'linear-gradient(135deg, #22c55e, #16a34a)',
+                                    boxShadow: '0 4px 20px rgba(34, 197, 94, 0.3)',
+                                }}
+                                id="call-me-btn"
+                            >
+                                {callStatus === 'calling' ? (
+                                    <><div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Connecting...</>
+                                ) : callStatus === 'success' ? (
+                                    <><CheckCircle2 className="w-5 h-5" /> Call Initiated!</>
+                                ) : (
+                                    <><Phone className="w-5 h-5" /> Call Me Now</>
+                                )}
+                            </button>
+
+                            <p className="text-center text-[11px] text-forest-muted/50 mt-4">
+                                Powered by KvedaaBot AI • Free call • No spam
+                            </p>
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
             {/* ═══ FOOTER ═══ */}
             <footer className="border-t border-forest-border/10 py-14 px-6 relative z-10"
                 style={{ background: 'linear-gradient(180deg, transparent, rgba(5, 13, 5, 0.5))' }}>
@@ -1032,12 +1230,24 @@ const StoreFront = ({ onLogin: parentOnLogin, user: parentUser, cart, addToCart,
                                         <span className="text-sm text-forest-muted">Subtotal ({totalItems} items)</span>
                                         <span className="text-2xl font-extrabold text-forest-cream">₹{totalPrice.toLocaleString()}</span>
                                     </div>
-                                    <button className="w-full py-4 rounded-2xl font-semibold text-sm text-white active:scale-[0.98] transition-all flex items-center justify-center gap-2"
+                                    {checkoutError && (
+                                        <div className="mb-3 p-3 rounded-xl text-sm text-center font-medium bg-red-500/10 text-red-400 border border-red-500/20">
+                                            {checkoutError}
+                                        </div>
+                                    )}
+                                    <button
+                                        onClick={handleCheckout}
+                                        disabled={checkingOut}
+                                        className="w-full py-4 rounded-2xl font-semibold text-sm text-white active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                                         style={{
                                             background: 'linear-gradient(135deg, #2d5a27, #7cb342, #f57c00)',
                                             boxShadow: '0 4px 25px rgba(124, 179, 66, 0.25), inset 0 1px 0 rgba(255,255,255,0.1)',
                                         }}>
-                                        <ShoppingCart className="w-4 h-4" /> Proceed to Checkout
+                                        {checkingOut ? (
+                                            <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Placing Order...</>
+                                        ) : (
+                                            <><ShoppingCart className="w-4 h-4" /> Proceed to Checkout</>
+                                        )}
                                     </button>
                                     <button onClick={() => setCartOpen(false)}
                                         className="w-full mt-3 py-3 rounded-xl text-sm text-forest-muted hover:text-forest-cream transition-colors font-medium">

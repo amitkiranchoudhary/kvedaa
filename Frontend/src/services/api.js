@@ -16,6 +16,18 @@ api.interceptors.request.use((config) => {
     return config;
 });
 
+// Handle 401 — clear stale tokens automatically
+api.interceptors.response.use(
+    (response) => response,
+    (error) => {
+        if (error.response && error.response.status === 401) {
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+        }
+        return Promise.reject(error);
+    }
+);
+
 // ─── AUTH ───
 export const authAPI = {
     login: (data) => api.post('/v1/login', data),
@@ -124,6 +136,14 @@ export const productAPI = {
     delete: (id) => api.delete(`/api/farm/products/${id}`),
     // Public (no auth)
     getPublic: () => axios.get(`${API_BASE}/store/products`),
+};
+
+// ─── ORDERS ───
+export const orderAPI = {
+    create: (data) => api.post('/orders/', data),
+    getMyOrders: () => api.get('/orders/my'),
+    getById: (id) => api.get(`/orders/${id}`),
+    cancel: (id) => api.put(`/orders/${id}`, { status: 'CANCELLED' }),
 };
 
 export default api;

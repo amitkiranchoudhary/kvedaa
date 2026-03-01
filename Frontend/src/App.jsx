@@ -19,6 +19,7 @@ import StoreFront from './pages/StoreFront';
 import About from './pages/About';
 import Products from './pages/Products';
 import Quality from './pages/Quality';
+import OrderStatus from './pages/OrderStatus';
 
 // Protected Routes Wrapper
 const ProtectedRoute = ({ user, handleLogout, children }) => {
@@ -104,6 +105,7 @@ function App() {
         <Route path="/about" element={<About />} />
         <Route path="/products" element={<Products cart={cart} addToCart={addToCart} removeFromCart={removeFromCart} updateQty={updateQty} />} />
         <Route path="/quality" element={<Quality />} />
+        <Route path="/order-status" element={<OrderStatus />} />
         <Route path="/login" element={!user ? <Login onLogin={handleLogin} /> : <Navigate to={user.email === (import.meta.env.VITE_ADMIN_EMAIL || 'amitkchoudhary2019@gmail.com') ? "/dashboard" : "/store"} />} />
         <Route path="/signup" element={!user ? <Signup onLogin={handleLogin} /> : <Navigate to={user.email === (import.meta.env.VITE_ADMIN_EMAIL || 'amitkchoudhary2019@gmail.com') ? "/dashboard" : "/store"} />} />
 

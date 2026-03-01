@@ -1,0 +1,21 @@
+﻿python : 2026-03-01 00:41:10.102 | INFO     | pipecat:<module>:14 - 
+\u14da\u160f\u15e2 Pipecat 0.0.103 (Python 3.13.1 (tags/v3.13.1:0671451, Dec  3 
+2024, 19:06:28) [MSC v.1942 64 bit (AMD64)]) \u14da\u160f\u15e2
+At line:1 char:1
++ python -c "from pipecat.serializers.twilio import TwilioFrameSerializ ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (2026-03-01 00:4...4da\u160f\u15e2:Stri 
+   ng) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+Traceback (most recent call last):
+  File "<string>", line 1, in <module>
+    from pipecat.serializers.twilio import TwilioFrameSerializer; import inspect; 
+src = inspect.getsource(TwilioFrameSerializer); print(src)
+                                                                                    
+                                              ~~~~~^^^^^
+  File "C:\Program Files\Python313\Lib\encodings\cp1252.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'charmap' codec can't encode character '\u03bc' in position 
+5112: character maps to <undefined>

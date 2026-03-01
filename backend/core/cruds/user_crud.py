@@ -23,14 +23,16 @@ class UserCRUD:
             logging.error("Error in UserCRUD")
             raise error
 
-    async def get_by_email(self, email: str):
+    async def get_by_email(self, identifier: str):
         try:
-            logging.info("Executing userCRUD get_by_email")
-            user = await self.engine.find_one(User, User.email == email)
+            logging.info("Executing userCRUD get_by_email (handles mobile as well)")
+            user = await self.engine.find_one(
+                User, (User.email == identifier) | (User.mobile_number == identifier)
+            )
             if user:
-                logging.info(f"User found with email: {email}")
+                logging.info(f"User found with identifier: {identifier}")
             else:
-                logging.info(f"User not found with email: {email}")
+                logging.info(f"User not found with identifier: {identifier}")
             return user
         except HTTPException as error:
             logging.error("Error in UserCRUD")

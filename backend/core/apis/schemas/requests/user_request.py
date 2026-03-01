@@ -168,9 +168,9 @@ class UserUpdateRequest(BaseModel):
 
 
 class LoginRequest(BaseModel):
-    email: EmailStr = Field(
+    email: str = Field(
         ...,
-        description="User's email address (must be unique)",
+        description="User's email address or mobile number",
     )
     password: str = Field(
         ...,
